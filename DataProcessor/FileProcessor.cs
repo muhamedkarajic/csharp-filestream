@@ -7,7 +7,6 @@ namespace DataProcessor
     {
         public string InputFilePath { get; set; }
 
-
         public FileProcessor(string filePath)
         {
             InputFilePath = filePath;
