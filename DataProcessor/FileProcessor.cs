@@ -35,6 +35,11 @@ namespace DataProcessor
                 Console.WriteLine($"Creating {backupDirectoryPath}");
                 Directory.CreateDirectory(backupDirectoryPath);
             }
+
+            string inputFileName = Path.GetFileName(InputFilePath);
+            string backupFilePath = Path.Combine(backupDirectoryPath, inputFileName);
+            Console.WriteLine($"Coping {inputFileName} to {backupFilePath}");
+            File.Copy(InputFilePath, backupFilePath);
         }
     }
 }
