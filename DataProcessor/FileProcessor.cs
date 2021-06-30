@@ -52,6 +52,31 @@ namespace DataProcessor
 
             Console.WriteLine($"Moving {InputFilePath} to {inProgressFilePath}");
             File.Move(InputFilePath, inProgressFilePath);
+
+            string extension = Path.GetExtension(InputFilePath);
+            switch (extension)
+            {
+                case ".txt":
+                    ProcessTextFile(inProgressFilePath);
+                    break;
+                default:
+                    Console.WriteLine($"{extension} is an unsupported file type.");
+                    break;
+            }
+
+            string completeDirectoryPath = Path.Combine(rootDirectoryPath, CompletedDirectoryName);
+            Directory.CreateDirectory(completeDirectoryPath);
+
+            Console.WriteLine($"Moving {inProgressFilePath} to {completeDirectoryPath}");
+
+            var completeFileName = $"{Path.GetFileNameWithoutExtension(InputFilePath)}-{Guid.NewGuid()}{extension}";
+            completeFileName = Path.ChangeExtension(completeFileName, ".complete");
+
+            var completedFilePath = Path.Combine(completeDirectoryPath, completeFileName);
+
+            File.Move(inProgressFilePath, completedFilePath);
         }
+
+        private void ProcessTextFile(string inProgressFilePath) { }
     }
 }
