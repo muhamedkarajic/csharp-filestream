@@ -1,10 +1,14 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
 
 namespace DataProcessor
 {
     class Program
     {
+        private static ConcurrentDictionary<string, string> FilesToProcess = new ConcurrentDictionary<string, string>();
+
         static void Main(string[] args)
         {
             Console.WriteLine("Parsing command line options");
@@ -18,6 +22,7 @@ namespace DataProcessor
                 Console.WriteLine($"Watching directory {directoryToWatch} for changes.");
 
                 using (var inputFileWatcher = new FileSystemWatcher(directoryToWatch))
+                using (var timer = new Timer(ProcessFiles, null, 0, 1000))
                 {
                     inputFileWatcher.IncludeSubdirectories = false;
                     inputFileWatcher.InternalBufferSize = 32768; //32 KB
@@ -42,16 +47,14 @@ namespace DataProcessor
         {
             Console.WriteLine($"Event: File Created | {e.Name} - {e.ChangeType}");
 
-            var fileProcessor = new FileProcessor(e.FullPath);
-            fileProcessor.Process();
+            FilesToProcess.TryAdd(e.FullPath, e.FullPath);
         }
 
         private static void FileChanged(object sender, FileSystemEventArgs e)
         {
             Console.WriteLine($"Event: File Changed | {e.Name} - {e.ChangeType}");
 
-            var fileProcessor = new FileProcessor(e.FullPath);
-            fileProcessor.Process();
+            FilesToProcess.TryAdd(e.FullPath, e.FullPath);
         }
 
         private static void FileDeleted(object sender, FileSystemEventArgs e)
@@ -92,6 +95,18 @@ namespace DataProcessor
                 default:
                     Console.WriteLine($"ERROR: {fileType} is not supported.");
                     return;
+            }
+        }
+
+        private static void ProcessFiles(Object stateInfo)
+        {
+            foreach (var filePath in FilesToProcess.Keys)
+            {
+                if (FilesToProcess.TryRemove(filePath, out _))
+                {
+                    var fileProcessor = new FileProcessor(filePath);
+                    fileProcessor.Process();
+                }
             }
         }
     }
