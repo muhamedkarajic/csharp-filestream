@@ -9,25 +9,58 @@ namespace DataProcessor
         {
             Console.WriteLine("Parsing command line options");
 
-            var command = args[0];
+            var directoryToWatch = args[0];
 
-            if (command == "--file")
-            {
-                var filePath = args[1];
-                Console.WriteLine($"Single file {filePath} selected");
-                ProcessingSingleFile(filePath);
-            }
-            else if (command == "--dir")
-            {
-                var directoryPath = args[1];
-                var fileType = args[2];
-                Console.WriteLine($"Directory {directoryPath} selected for {fileType} files");
-                ProcessDirectory(directoryPath, fileType);
-            }
+            if (!Directory.Exists(directoryToWatch))
+                Console.WriteLine($"Error: {directoryToWatch} dose not exist.");
             else
             {
-                Console.WriteLine("Invalid command line options.");
+                Console.WriteLine($"Watching directory {directoryToWatch} for changes.");
+
+                using (var inputFileWatcher = new FileSystemWatcher(directoryToWatch))
+                {
+                    inputFileWatcher.IncludeSubdirectories = false;
+                    inputFileWatcher.InternalBufferSize = 32768; //32 KB
+                    inputFileWatcher.Filter = "*.*";
+                    inputFileWatcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite;
+
+                    inputFileWatcher.Created += FileCreated;
+                    inputFileWatcher.Changed += FileChanged;
+                    inputFileWatcher.Deleted += FileDeleted;
+                    inputFileWatcher.Renamed += FileRenamed;
+                    inputFileWatcher.Error += FileError;
+                    
+                    inputFileWatcher.EnableRaisingEvents = true;
+
+                    Console.WriteLine("Press enter to quit.");
+                    Console.ReadLine();
+                }
             }
+        }
+
+        private static void FileCreated(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine($"Event: File Created | {e.Name} - {e.ChangeType}");
+        }
+
+        private static void FileChanged(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine($"Event: File Changed | {e.Name} - {e.ChangeType}");
+        }
+
+        private static void FileDeleted(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine($"Event: File Deleted | {e.Name} - {e.ChangeType}");
+        }
+
+        private static void FileRenamed(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine($"Event: File Renamed | {e.Name} - {e.ChangeType}");
+        }
+
+        private static void FileError(object sender, ErrorEventArgs e)
+        {
+            Console.WriteLine($"ERROR: File system watching may no longer be active: {e.GetException()}");
         }
 
         private static void ProcessingSingleFile(string filePath)
