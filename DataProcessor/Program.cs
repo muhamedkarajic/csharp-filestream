@@ -29,7 +29,7 @@ namespace DataProcessor
                     inputFileWatcher.Deleted += FileDeleted;
                     inputFileWatcher.Renamed += FileRenamed;
                     inputFileWatcher.Error += FileError;
-                    
+
                     inputFileWatcher.EnableRaisingEvents = true;
 
                     Console.WriteLine("Press enter to quit.");
@@ -41,11 +41,17 @@ namespace DataProcessor
         private static void FileCreated(object sender, FileSystemEventArgs e)
         {
             Console.WriteLine($"Event: File Created | {e.Name} - {e.ChangeType}");
+
+            var fileProcessor = new FileProcessor(e.FullPath);
+            fileProcessor.Process();
         }
 
         private static void FileChanged(object sender, FileSystemEventArgs e)
         {
             Console.WriteLine($"Event: File Changed | {e.Name} - {e.ChangeType}");
+
+            var fileProcessor = new FileProcessor(e.FullPath);
+            fileProcessor.Process();
         }
 
         private static void FileDeleted(object sender, FileSystemEventArgs e)
