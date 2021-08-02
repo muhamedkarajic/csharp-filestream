@@ -1,18 +1,18 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Primitives;
 
 namespace DataProcessor
 {
     class Program
     {
-        private static ConcurrentDictionary<string, string> FilesToProcess = new ConcurrentDictionary<string, string>();
+        private static IMemoryCache FilesToProcess = new MemoryCache(new MemoryCacheOptions());
 
         static void Main(string[] args)
         {
             Console.WriteLine("Parsing command line options");
-
             var directoryToWatch = args[0];
 
             if (!Directory.Exists(directoryToWatch))
@@ -22,7 +22,6 @@ namespace DataProcessor
                 Console.WriteLine($"Watching directory {directoryToWatch} for changes.");
 
                 using (var inputFileWatcher = new FileSystemWatcher(directoryToWatch))
-                using (var timer = new Timer(ProcessFiles, null, 0, 1000))
                 {
                     inputFileWatcher.IncludeSubdirectories = false;
                     inputFileWatcher.InternalBufferSize = 32768; //32 KB
@@ -47,14 +46,14 @@ namespace DataProcessor
         {
             Console.WriteLine($"Event: File Created | {e.Name} - {e.ChangeType}");
 
-            FilesToProcess.TryAdd(e.FullPath, e.FullPath);
+            AddToCache(e.FullPath);
         }
 
         private static void FileChanged(object sender, FileSystemEventArgs e)
         {
             Console.WriteLine($"Event: File Changed | {e.Name} - {e.ChangeType}");
 
-            FilesToProcess.TryAdd(e.FullPath, e.FullPath);
+            AddToCache(e.FullPath);
         }
 
         private static void FileDeleted(object sender, FileSystemEventArgs e)
@@ -72,41 +71,25 @@ namespace DataProcessor
             Console.WriteLine($"ERROR: File system watching may no longer be active: {e.GetException()}");
         }
 
-        private static void ProcessingSingleFile(string filePath)
+        private static void AddToCache(string fullPath)
         {
-            var fileProcessor = new FileProcessor(filePath);
-            fileProcessor.Process();
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(TimeSpan.FromSeconds(2));
+
+            var cacheEntryOptions = new MemoryCacheEntryOptions()
+                .AddExpirationToken(new CancellationChangeToken(cts.Token))
+                .RegisterPostEvictionCallback(ProcessFile);
+
+            FilesToProcess.Set(fullPath, fullPath, cacheEntryOptions);
         }
 
-        private static void ProcessDirectory(string directoryPath, string fileType)
+        private static void ProcessFile(object key, object value, EvictionReason reason, object state)
         {
-            var allFiles = Directory.GetFiles(directoryPath);
-
-            switch (fileType)
+            Console.WriteLine($"Event: Reason {reason}, object {value}.");
+            if (reason == EvictionReason.TokenExpired)
             {
-                case "TEXT":
-                    string[] textFiles = Directory.GetFiles(directoryPath, "*.txt");
-                    foreach (var textFilePath in textFiles)
-                    {
-                        var fileProcessor = new FileProcessor(textFilePath);
-                        fileProcessor.Process();
-                    }
-                    break;
-                default:
-                    Console.WriteLine($"ERROR: {fileType} is not supported.");
-                    return;
-            }
-        }
-
-        private static void ProcessFiles(Object stateInfo)
-        {
-            foreach (var filePath in FilesToProcess.Keys)
-            {
-                if (FilesToProcess.TryRemove(filePath, out _))
-                {
-                    var fileProcessor = new FileProcessor(filePath);
-                    fileProcessor.Process();
-                }
+                var fileProcessor = new FileProcessor(key.ToString());
+                fileProcessor.Process();
             }
         }
     }
