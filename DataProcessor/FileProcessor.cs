@@ -76,10 +76,14 @@ namespace DataProcessor
 
             File.Move(inProgressFilePath, completedFilePath);
 
-            string inProgressDirectoryPath = Path.GetDirectoryName(inProgressFilePath);
-            Directory.Delete(inProgressDirectoryPath, true);
+            // Note: Multiple Files are Processed at the same time therefor if the folder dosent exist it might cause errors.
+            // string inProgressDirectoryPath = Path.GetDirectoryName(inProgressFilePath);
+            // Directory.Delete(inProgressDirectoryPath, true);
         }
 
-        private void ProcessTextFile(string inProgressFilePath) { }
+        private void ProcessTextFile(string inProgressFilePath)
+        {
+            Console.WriteLine($"Processing text file {InputFilePath}");
+        }
     }
 }
